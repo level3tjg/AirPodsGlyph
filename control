@@ -1,7 +1,7 @@
 Package: com.level3tjg.airpodsglyph
 Name: AirPodsGlyph
 Depends: mobilesubstrate, firmware (>=10.0)
-Version: 1.1.1
+Version: 1.1.2
 Architecture: iphoneos-arm
 Description: Replace the Bluetooth headphones icon with an AirPods icon
 Maintainer: level3tjg

@@ -22,36 +22,18 @@
 -(void)setImage:(UIImage *)image;
 @end
 
-%hook _UIStatusBarBluetoothItem
--(UIImageView *)imageView{
-	UIImageView *newView = %orig;
-	bool airpodsConnected = false;
+bool airpodsConnected(){
 	for(BluetoothDevice *device in [[%c(BluetoothManager) sharedInstance] connectedDevices]){
 		if([device isAppleAudioDevice] && [device magicPaired]){
-			airpodsConnected = true;
+			return true;
 		}
 	}
-	UIImage *airpodsImage;
-	if(airpodsConnected){
-		airpodsImage = [UIImage imageWithContentsOfFile:@"/Library/Application Support/AirPodsGlyph/whiteAirpods.png"];
-		MSHookIvar<CGFloat>(airpodsImage, "_scale") = 4;
-		[newView setImage:airpodsImage];
-	}
-	return newView;
+	return false;
 }
-%end
 
-%hook UIStatusBarIndicatorItemView
--(_UILegibilityImageSet *)contentsImage{
-	_UILegibilityImageSet *set = %orig;
-	bool airpodsConnected = false;
-	for(BluetoothDevice *device in [[%c(BluetoothManager) sharedInstance] connectedDevices]){
-		if([device isAppleAudioDevice] && [device magicPaired]){
-			airpodsConnected = true;
-		}
-	}
+void setImageForObj(UIImageView *obj){
 	UIImage *airpodsImage;
-	if(([[MSHookIvar<UIStatusBarItem *>(self, "_item") indicatorName] isEqualToString:@"BTHeadphones"])/* && (airpodsConnected)*/){
+	if(airpodsConnected()){
 		if([[UIApplication sharedApplication] statusBarStyle] == 0){
 			airpodsImage = [UIImage imageWithContentsOfFile:@"/Library/Application Support/AirPodsGlyph/blackAirpods.png"];
 		}
@@ -59,8 +41,24 @@
 			airpodsImage = [UIImage imageWithContentsOfFile:@"/Library/Application Support/AirPodsGlyph/whiteAirpods.png"];
 		}
 		MSHookIvar<CGFloat>(airpodsImage, "_scale") = 4;
-		[set setImage:airpodsImage];
+		[obj setImage:airpodsImage];
+
 	}
+}
+
+%hook _UIStatusBarBluetoothItem
+-(UIImageView *)imageView{
+	UIImageView *newView = %orig;
+	setImageForObj(newView);
+	return newView;
+}
+%end
+
+%hook UIStatusBarIndicatorItemView
+-(_UILegibilityImageSet *)contentsImage{
+	_UILegibilityImageSet *set = %orig;
+	if(([[MSHookIvar<UIStatusBarItem *>(self, "_item") indicatorName] isEqualToString:@"BTHeadphones"]))
+		setImageForObj((UIImageView *)set);
 	return set;
 }
 %end
