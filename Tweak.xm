@@ -33,6 +33,9 @@
 @property (nonatomic, assign) UIStatusBarItem *item;
 @end
 
+@interface UIStatusBarBluetoothItemView : UIStatusBarItemView
+@end
+
 @interface UIStatusBarIndicatorItemView : UIStatusBarItemView
 @end
 
@@ -55,41 +58,38 @@ bool airpodsProConnected(){
 	return false;
 }
 
-UIImage *airpodsImage(){
-	UIImage *airpods;
-	CGSize imgsize;
-	airpods = [[objc_getClass("_UIAssetManager") assetManagerForBundle:[NSBundle bundleWithIdentifier:@"com.apple.BatteryCenter"]] imageNamed:@"batteryglyphs-airpods-left-right"];
+UIImage *airpodsImage(UIImage *orig){
+	UIImage *airpods = [[objc_getClass("_UIAssetManager") assetManagerForBundle:[NSBundle bundleWithIdentifier:@"com.apple.BatteryCenter"]] imageNamed:@"batteryglyphs-airpods-left-right"];
+	CGSize imgsize = orig.size;
 	if(@available(iOS 13, *)){
-		if(airpodsProConnected())
+		if(airpodsProConnected()){
 			airpods = [[objc_getClass("_UIAssetManager") assetManagerForBundle:[NSBundle bundleWithIdentifier:@"com.apple.BatteryCenter"]] imageNamed:@"batteryglyphs-b298-left-right"];
-	}
-	imgsize = CGSizeMake(airpods.size.width/2, airpods.size.height/2);
-	if(@available(iOS 11, *)){
-		if(!airpodsProConnected())
-			imgsize = CGSizeMake(airpods.size.width/1.5, airpods.size.height/1.5);
+			imgsize = CGSizeMake(imgsize.width*.65, imgsize.height*.95);
+		}
+		else{
+			imgsize = CGSizeMake(imgsize.width*.90, imgsize.height*.90);
+		}
 	}
 	return [[airpods sbf_resizeImageToSize:imgsize] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
 }
 
 void setImageForObj(UIImageView *obj){
 	if(airpodsConnected())
-		obj.image = airpodsImage();
+		obj.image = airpodsImage(obj.image);
 }
 
 %hook UIImage
++(UIImage *)_kitImageNamed:(NSString *)name withTrait:(id)trait{
+	if([name containsString:@"BTHeadphones"])
+			if(airpodsConnected())
+				return airpodsImage(%orig);
+	return %orig();
+}
 -(UIImage *)_imageWithImageAsset:(UIImageAsset *)asset{
 	if([asset.assetName isEqualToString:@"headphones"] && [MSHookIvar<NSBundle *>(asset, "_containingBundle").bundleIdentifier isEqualToString:@"com.apple.CoreGlyphs"])
 		if(airpodsConnected())
-			return airpodsImage();
+			return airpodsImage(%orig);
 	return %orig();
-}
-%end
-
-%hook _UIStatusBarBluetoothItem
--(UIImageView *)imageView{
-	UIImageView *imageView = %orig;
-	setImageForObj(imageView);
-	return imageView;
 }
 %end
 
