@@ -1,64 +1,118 @@
-#include <CoreImage/CoreImage.h>
-#import <QuartzCore/QuartzCore.h>
+#import <objc/runtime.h>
+#import <substrate.h>
 
-@interface BluetoothDevice
--(bool)isAppleAudioDevice;
--(bool)magicPaired;
+@interface UIImageAsset (Private)
+@property (nonatomic, assign) NSString *assetName;
 @end
 
-@interface BluetoothManager
-+(BluetoothManager *)sharedInstance;
+@interface _UIAssetManager
++(id)assetManagerForBundle:(NSBundle *)bundle;
+-(UIImage *)imageNamed:(NSString *)name;
+@end
+
+@interface UIImage (Private)
+@property (nonatomic, assign) CGSize pixelSize;
+-(UIImage *)sbf_resizeImageToSize:(CGSize)size;
+@end
+
+@interface BCBatteryDeviceController
++(BCBatteryDeviceController *)sharedInstance;
 -(NSArray *)connectedDevices;
 @end
 
+@interface BCBatteryDevice
+@property (nonatomic, assign) UIImage *glyph;
+@end
+
 @interface UIStatusBarItem
--(NSString *)indicatorName;
+@property (nonatomic, assign) NSString *indicatorName;
+@property (nonatomic, assign) Class viewClass;
 @end
 
-@interface UIStatusBarIndicatorItemView : UIView
+@interface UIStatusBarItemView
+@property (nonatomic, assign) UIStatusBarItem *item;
 @end
 
-@interface _UILegibilityImageSet
--(void)setImage:(UIImage *)image;
+@interface UIStatusBarIndicatorItemView : UIStatusBarItemView
 @end
 
 bool airpodsConnected(){
-	for(BluetoothDevice *device in [[%c(BluetoothManager) sharedInstance] connectedDevices]){
-		if([device isAppleAudioDevice] && [device magicPaired]){
+	for(BCBatteryDevice *device in [[objc_getClass("BCBatteryDeviceController") sharedInstance] connectedDevices]){
+		if([device.glyph.imageAsset.assetName containsString:@"airpods"] || [device.glyph.imageAsset.assetName containsString:@"b298"])
 			return true;
+	}
+	return false;
+}
+
+bool airpodsProConnected(){
+	if(@available(iOS 13, *)){
+		for(BCBatteryDevice *device in [[objc_getClass("BCBatteryDeviceController") sharedInstance] connectedDevices]){
+			if([device.glyph.imageAsset.assetName containsString:@"b298"]){
+				return true;
+			}
 		}
 	}
 	return false;
 }
 
-void setImageForObj(UIImageView *obj){
-	UIImage *airpodsImage;
-	if(airpodsConnected()){
-		if([[UIApplication sharedApplication] statusBarStyle] == 0){
-			airpodsImage = [UIImage imageWithContentsOfFile:@"/Library/Application Support/AirPodsGlyph/blackAirpods.png"];
-		}
-		else{
-			airpodsImage = [UIImage imageWithContentsOfFile:@"/Library/Application Support/AirPodsGlyph/whiteAirpods.png"];
-		}
-		MSHookIvar<CGFloat>(airpodsImage, "_scale") = 4;
-		[obj setImage:airpodsImage];
-
+UIImage *airpodsImage(){
+	UIImage *airpods;
+	CGSize imgsize;
+	airpods = [[objc_getClass("_UIAssetManager") assetManagerForBundle:[NSBundle bundleWithIdentifier:@"com.apple.BatteryCenter"]] imageNamed:@"batteryglyphs-airpods-left-right"];
+	if(@available(iOS 13, *)){
+		if(airpodsProConnected())
+			airpods = [[objc_getClass("_UIAssetManager") assetManagerForBundle:[NSBundle bundleWithIdentifier:@"com.apple.BatteryCenter"]] imageNamed:@"batteryglyphs-b298-left-right"];
 	}
+	imgsize = CGSizeMake(airpods.size.width/2, airpods.size.height/2);
+	if(@available(iOS 11, *)){
+		if(!airpodsProConnected())
+			imgsize = CGSizeMake(airpods.size.width/1.5, airpods.size.height/1.5);
+	}
+	return [[airpods sbf_resizeImageToSize:imgsize] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
 }
+
+void setImageForObj(UIImageView *obj){
+	if(airpodsConnected())
+		obj.image = airpodsImage();
+}
+
+%hook UIImage
+-(UIImage *)_imageWithImageAsset:(UIImageAsset *)asset{
+	if([asset.assetName isEqualToString:@"headphones"] && [MSHookIvar<NSBundle *>(asset, "_containingBundle").bundleIdentifier isEqualToString:@"com.apple.CoreGlyphs"])
+		if(airpodsConnected())
+			return airpodsImage();
+	return %orig();
+}
+%end
 
 %hook _UIStatusBarBluetoothItem
 -(UIImageView *)imageView{
-	UIImageView *newView = %orig;
-	setImageForObj(newView);
-	return newView;
+	UIImageView *imageView = %orig;
+	setImageForObj(imageView);
+	return imageView;
 }
 %end
 
 %hook UIStatusBarIndicatorItemView
--(_UILegibilityImageSet *)contentsImage{
-	_UILegibilityImageSet *set = %orig;
-	if(([[MSHookIvar<UIStatusBarItem *>(self, "_item") indicatorName] isEqualToString:@"BTHeadphones"]))
-		setImageForObj((UIImageView *)set);
-	return set;
+-(UIImageView *)contentsImage{
+	UIImageView *imageView = %orig;
+	if([self.item.indicatorName isEqualToString:@"BTHeadphones"] || [NSStringFromClass(self.item.viewClass) containsString:@"Bluetooth"])
+		setImageForObj(imageView);
+	return imageView;
+}
+-(BOOL)shouldTintContentImage{
+	if([self.item.indicatorName isEqualToString:@"BTHeadphones"] || [NSStringFromClass(self.item.viewClass) containsString:@"Bluetooth"])
+		return true;
+	return %orig;
 }
 %end
+
+%hook _UIStatusBarImageView
+-(UIImage *)image{
+	return [%orig imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+}
+%end
+
+%ctor{
+	dlopen("/System/Library/PrivateFrameworks/BatteryCenter.framework/BatteryCenter", RTLD_LAZY);
+}
