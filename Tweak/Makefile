@@ -1,7 +1,5 @@
 INSTALL_TARGET_PROCESSES = SpringBoard
 
-THEOS_DEVICE_IP = 10.12.14.60
-
 include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = AirPodsGlyph

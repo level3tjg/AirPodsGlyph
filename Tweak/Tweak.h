@@ -27,6 +27,8 @@
 @end
 
 @interface MPAVRoute : NSObject
+@property NSInteger routeSubtype;
+@property(getter=isHeadphonesRoute) BOOL headphonesRoute;
 @property(getter=isClusterRoute) BOOL clusterRoute;
 @property(getter=isAirpodsRoute) BOOL airpodsRoute;
 @property(getter=isB298Route) BOOL b298Route;

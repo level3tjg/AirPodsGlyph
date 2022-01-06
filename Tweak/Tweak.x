@@ -3,20 +3,24 @@
 static NSDictionary *prefs;
 
 %hook MPAVRoute
+%new
+- (BOOL)isHeadphonesRoute {
+  return self.routeSubtype - 2 > 11;
+}
 - (BOOL)isAirpodsRoute {
-  return (!self.clusterRoute && [prefs[@"forceAirpods"] boolValue]) ||
+  return (self.headphonesRoute && [prefs[@"forceAirpods"] boolValue]) ||
          %orig;
 }
 - (BOOL)isB298Route {
-  return (!self.clusterRoute && [prefs[@"forceAirpodsPro"] boolValue]) ||
+  return (self.headphonesRoute && [prefs[@"forceAirpodsPro"] boolValue]) ||
          %orig;
 }
 - (BOOL)isB515Route {
-  return (!self.clusterRoute && [prefs[@"forceAirpodsMax"] boolValue]) ||
+  return (self.headphonesRoute && [prefs[@"forceAirpodsMax"] boolValue]) ||
          %orig;
 }
 - (BOOL)isB688Route {
-  return (!self.clusterRoute && [prefs[@"forceAirpodsGen3"] boolValue]) ||
+  return (self.headphonesRoute && [prefs[@"forceAirpodsGen3"] boolValue]) ||
          %orig;
 }
 %end
