@@ -1,15 +1,11 @@
-TARGET := iphone:clang:latest:13.0
-
-ARCHS = arm64 arm64e
-
 include $(THEOS)/makefiles/common.mk
 
 BUNDLE_NAME = AirPodsGlyphPrefs
 
-AirPodsGlyphPrefs_FILES = APGRootListController.m
-AirPodsGlyphPrefs_FRAMEWORKS = UIKit MediaPlayer
-AirPodsGlyphPrefs_PRIVATE_FRAMEWORKS = Preferences
-AirPodsGlyphPrefs_INSTALL_PATH = /Library/PreferenceBundles
-AirPodsGlyphPrefs_CFLAGS = -fobjc-arc
+$(BUNDLE_NAME)_FILES = APGRootListController.m
+$(BUNDLE_NAME)_FRAMEWORKS = UIKit MediaPlayer
+$(BUNDLE_NAME)_PRIVATE_FRAMEWORKS = Preferences
+$(BUNDLE_NAME)_INSTALL_PATH = /Library/PreferenceBundles
+$(BUNDLE_NAME)_CFLAGS = -fobjc-arc
 
 include $(THEOS_MAKE_PATH)/bundle.mk
